@@ -9,59 +9,57 @@ interface AppProps {
   sdk: FieldExtensionSDK;
 }
 
-interface AppState {
-  value?: string;
+interface Article {
+  fields: {
+    title: {
+      'en-US': string
+    }
+  }
 }
 
-export class App extends React.Component<AppProps, AppState> {
-  constructor(props: AppProps) {
-    super(props);
-    this.state = {
-      value: props.sdk.field.getValue() || ''
-    };
-  }
+export default function App({sdk}: AppProps): JSX.Element {
+  const anchorField = sdk.entry.fields['anchor']
+  const [fieldValue, setFieldValue] = React.useState(sdk.field.getValue() || '')
+  const [linkedEntryTitle, setLinkedEntryTitle] = React.useState('')
+  const [anchor, setAnchor] = React.useState(anchorField.getValue() || '')
 
-  detachExternalChangeHandler: Function | null = null;
 
-  componentDidMount() {
-    this.props.sdk.window.startAutoResizer();
-
-    // Handler for external field value changes (e.g. when multiple authors are working on the same entry).
-    this.detachExternalChangeHandler = this.props.sdk.field.onValueChanged(this.onExternalChange);
-  }
-
-  componentWillUnmount() {
-    if (this.detachExternalChangeHandler) {
-      this.detachExternalChangeHandler();
+  React.useEffect( () => {
+    const sys = sdk.entry.getSys()
+    async function fetchInboundLink(): Promise<void> {
+      const {items}: {items: Article[]} = await sdk.space.getEntries({'links_to_entry': sys.id})
+      setLinkedEntryTitle(items.shift()?.fields.title['en-US'] || '')
     }
-  }
 
-  onExternalChange = (value: string) => {
-    this.setState({ value });
-  };
+    fetchInboundLink()
+  })
 
-  onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.currentTarget.value;
-    this.setState({ value });
-    if (value) {
-      await this.props.sdk.field.setValue(value);
-    } else {
-      await this.props.sdk.field.removeValue();
-    }
-  };
+  React.useEffect( () => {
+      const name = `[${anchor}] ${linkedEntryTitle}`
+      setFieldValue(name)
+      sdk.field.setValue(name)
+  }, [sdk.field, anchor, linkedEntryTitle])
 
-  render() {
-    return (
-      <TextInput
+  React.useEffect(() => {
+    const detach = sdk.entry.fields['anchor'].onValueChanged((value) => setAnchor(value))
+    return () => detach()
+  }, [sdk.entry])
+
+
+  React.useEffect(() => {
+    sdk.window.startAutoResizer();
+  }, [sdk.window])
+
+  return (
+    <TextInput
         width="large"
         type="text"
         id="my-field"
         testId="my-field"
-        value={this.state.value}
-        onChange={this.onChange}
+        value={fieldValue}
+        disabled
       />
-    );
-  };
+  )
 }
 
 init(sdk => {
