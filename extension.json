@@ -1,0 +1,8 @@
+{
+  "id": "linked-entry",
+  "name": "linked-entry",
+  "srcdoc": "./build/index.html",
+  "fieldTypes": [
+    "Symbol"
+  ]
+}
